@@ -1,39 +1,45 @@
 import streamlit as st
 from transformers import pipeline
+from PIL import Image
 
 # 1. Judul Website
-st.title("Aplikasi Deteksi Emosional Teks AI 🎭")
-st.write("Ketik kalimatmu di bawah ini untuk mendeteksi emosi di dalamnya!")
+st.title("Aplikasi Deteksi Emosi Lewat Wajah AI 📸🎭")
+st.write("Unggah foto wajah di bawah ini untuk menebak ekspresi emosinya!")
 
-# 2. Kotak Input Teks untuk Pengguna
-kalimat_user = st.text_area("Masukkan kalimat/curhatan di sini:", "Hari ini aku senang sekali karena nilaiku bagus!")
+# 2. Tombol Upload Gambar Wajah
+file_gambar = st.file_uploader("Pilih foto wajah (JPG/PNG)...", type=["jpg", "jpeg", "png"])
 
-if st.button("Deteksi Emosi ✨"):
-    with st.spinner('AI sedang membaca perasaanmu...'):
-        # 3. Memuat Model AI khusus pendeteksi emosi
-        deteksi_emosi = pipeline("text-classification", model="bhadresh-savani/bert-base-uncased-emotion")
+if file_gambar is not None:
+    # Menampilkan gambar wajah yang di-upload ke layar
+    gambar = Image.open(file_gambar)
+    st.image(gambar, caption='Foto Wajah yang Diunggah', use_column_width=True)
+    
+    st.write("---")
+    st.write("### 🤖 Hasil Analisis Ekspresi Wajah:")
+    
+    with st.spinner('AI sedang menganalisis ekspresi wajah...'):
+        # 3. Memuat Model AI khusus Face Emotion Recognition dari Hugging Face
+        deteksi_wajah = pipeline("image-classification", model="dima806/facial_emotions_image_detection")
+        hasil = deteksi_wajah(gambar)
         
-        # 4. Memproses teks dari pengguna
-        hasil = deteksi_emosi(kalimat_user)[0]
-        
-        # 5. Menampilkan hasil emosi ke layar web
-        st.write("---")
-        st.write("### 🤖 Hasil Analisis Emosi:")
-        
-        label_emosi = hasil['label'].upper()
-        skor_akurasi = hasil['score'] * 100
-        
-        # Menerjemahkan label emosi ke Bahasa Indonesia
+        # Kamus terjemahan emosi wajah ke Bahasa Indonesia
         kamus_emosi = {
-            "JOY": "SENANG / BAHAGIA 😊",
-            "SADNESS": "SEDIH / HARU 😢",
-            "ANGER": "MARAH / KESAL 😡",
-            "FEAR": "TAKUT / CEMAS 😨",
-            "LOVE": "PENUH CINTA / KAGUM 🥰",
-            "SURPRISE": "TERKEJUT / KAGET 😲"
+            "sad": "SEDIH 😢",
+            "happy": "BAHAGIA / TERSENYUM 😊",
+            "angry": "MARAH 😡",
+            "surprise": "TERKEJUT / KAGET 😲",
+            "fear": "TAKUT / CEMAS 😨",
+            "disgust": "JIJIK / JENGKEL 🤢",
+            "neutral": "DATAR / BIASA SAJA 😐"
         }
         
-        emosi_indo = kamus_emosi.get(label_emosi, label_emosi)
-        
-        st.success(f"Emosi yang terdeteksi: **{emosi_indo}**")
-        st.info(f"Tingkat Keyakinan AI: **{skor_akurasi:.2f}%**")
+        # 4. Menampilkan 3 tebakan ekspresi teratas
+        for i, tebakan in enumerate(hasil[:3]):
+            label_asal = tebakan['label'].lower()
+            emosi_indo = kamus_emosi.get(label_asal, label_asal.upper())
+            persentase = tebakan['score'] * 100
+            
+            if i == 0:
+                st.success(f"**Tebakan Utama: {emosi_indo} ({persentase:.2f}%)**")
+            else:
+                st.write(f"Kemungkinan {i+1}: {emosi_indo} ({persentase:.2f}%)")
